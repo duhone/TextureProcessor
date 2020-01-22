@@ -64,8 +64,10 @@ int main(int argc, char** argv) {
 		app.exit(error);
 	}
 
-	inputPath  = Platform::GetCurrentProcessPath() / inputPath;
+	inputPath = Platform::GetCurrentProcessPath() / inputPath;
+	inputPath.replace_extension("tga");
 	outputPath = Platform::GetCurrentProcessPath() / outputPath;
+	outputPath.replace_extension("crtexd");
 
 	Image inputImage = ReadImage(inputPath);
 
