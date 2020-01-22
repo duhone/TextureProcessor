@@ -1,4 +1,6 @@
-﻿#include "cli11/cli11.hpp"
+﻿#include "Tga.h"
+
+#include "cli11/cli11.hpp"
 #include "fmt/format.h"
 
 #include "DataCompression/LosslessCompression.h"
@@ -64,6 +66,8 @@ int main(int argc, char** argv) {
 
 	inputPath  = Platform::GetCurrentProcessPath() / inputPath;
 	outputPath = Platform::GetCurrentProcessPath() / outputPath;
+
+	Image inputImage = ReadImage(inputPath);
 
 	/*fs::path compiledVertPath = CompileShader(vertPath);
 	auto vertSpirv = Platform::OpenMMapFile(compiledVertPath);

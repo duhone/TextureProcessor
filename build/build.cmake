@@ -1,6 +1,8 @@
 set(texture_processor_root "${CMAKE_CURRENT_LIST_DIR}/..")
 
 set(TEXTURE_PROCESSOR_SRCS
+    ${texture_processor_root}/src/Tga.h
+    ${texture_processor_root}/src/Tga.cpp
     ${texture_processor_root}/src/main.cpp
 )
 
