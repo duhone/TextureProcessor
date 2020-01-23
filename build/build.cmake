@@ -12,6 +12,7 @@ set(TEXTURE_PROCESSOR_BUILD
 
 set(TEXTURE_PROCESSOR_TEST_FILES
     ${texture_processor_root}/asset_db/textures/spencer_walk_0001.tga
+    ${texture_processor_root}/asset_db/textures/CompletionScreen.tga
 )
 
 add_executable(TextureProcessor  
@@ -36,5 +37,8 @@ source_group("Test Textures" FILES ${TEXTURE_PROCESSOR_TEST_FILES})
 add_custom_command(TARGET TextureProcessor POST_BUILD        
   COMMAND ${CMAKE_COMMAND} -E copy_if_different  
       ${texture_processor_root}/asset_db/textures/spencer_walk_0001.tga
+      $<TARGET_FILE_DIR:TextureProcessor>     
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different  
+      ${texture_processor_root}/asset_db/textures/CompletionScreen.tga
       $<TARGET_FILE_DIR:TextureProcessor>)
 		
