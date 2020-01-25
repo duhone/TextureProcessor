@@ -22,6 +22,7 @@ add_executable(TextureProcessor
 )
 	
 target_link_libraries(TextureProcessor 
+	amdcompress
 	cli11
 	fmt
 	spdlog
@@ -34,7 +35,10 @@ target_link_libraries(TextureProcessor
 source_group("Build" FILES ${TEXTURE_PROCESSOR_BUILD})
 source_group("Test Textures" FILES ${TEXTURE_PROCESSOR_TEST_FILES})
 	
-add_custom_command(TARGET TextureProcessor POST_BUILD        
+add_custom_command(TARGET TextureProcessor POST_BUILD       
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different  
+      ${amdcompress_root}/lib/x64/AMDCompress_MT_DLL.dll
+      $<TARGET_FILE_DIR:TextureProcessor>          
   COMMAND ${CMAKE_COMMAND} -E copy_if_different  
       ${texture_processor_root}/asset_db/textures/spencer_walk_0001.tga
       $<TARGET_FILE_DIR:TextureProcessor>     

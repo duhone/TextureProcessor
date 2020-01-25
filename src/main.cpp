@@ -9,6 +9,8 @@
 #include "Platform/Process.h"
 #include "core/Log.h"
 
+#include "AMDCompress.h"
+
 #include <chrono>
 #include <cstdio>
 
@@ -70,6 +72,9 @@ int main(int argc, char** argv) {
 	outputPath.replace_extension("crtexd");
 
 	Image inputImage = ReadImage(inputPath);
+
+	AMD_TC_InitializeBCLibrary();
+	AMD_TC_ShutdownBCLibrary();
 
 	/*fs::path compiledVertPath = CompileShader(vertPath);
 	auto vertSpirv = Platform::OpenMMapFile(compiledVertPath);
