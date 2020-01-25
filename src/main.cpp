@@ -68,27 +68,24 @@ vector<byte> CompressTexture(const Image& a_image, bool a_fast) {
 	return result;
 }
 
-vector<byte> BuildCRSM(const unique_ptr<Platform::IMemoryMappedFile>& vertSpirv,
-                       const unique_ptr<Platform::IMemoryMappedFile>& fragSpirv) {
+vector<byte> BuildCRTexd(const Image& a_image, const vector<byte>& a_data, bool a_fast) {
 	vector<byte> uncompressed;
 
 	struct Header {
-		uint32_t VertSize{0};
-		uint32_t FragSize{0};
+		uint16_t Width{0};
+		uint16_t Height{0};
 	};
 
 	Header header;
-	header.VertSize = (uint32_t)vertSpirv->size();
-	header.FragSize = (uint32_t)fragSpirv->size();
+	header.Width  = a_image.Width;
+	header.Height = a_image.Height;
 
-	uncompressed.resize(sizeof(header) + header.VertSize + header.FragSize);
+	uncompressed.resize(sizeof(header) + a_data.size());
 
 	copy((byte*)&header, (byte*)&header + sizeof(header), begin(uncompressed));
-	copy(vertSpirv->data(), vertSpirv->data() + vertSpirv->size(), begin(uncompressed) + sizeof(header));
-	copy(fragSpirv->data(), fragSpirv->data() + fragSpirv->size(),
-	     begin(uncompressed) + sizeof(header) + vertSpirv->size());
+	copy(a_data.data(), a_data.data() + a_data.size(), begin(uncompressed) + sizeof(header));
 
-	return DataCompression::Compress(data(uncompressed), (uint32_t)size(uncompressed), 18);
+	return DataCompression::Compress(data(a_data), (uint32_t)size(a_data), a_fast ? 3 : 18);
 }
 
 int main(int argc, char** argv) {
@@ -124,18 +121,12 @@ int main(int argc, char** argv) {
 	Image inputImage = ReadImage(inputPath);
 
 	auto compTex = CompressTexture(inputImage, fast);
+	auto crtexd  = BuildCRTexd(inputImage, compTex, fast);
 
-	/*fs::path compiledVertPath = CompileShader(vertPath);
-	auto vertSpirv = Platform::OpenMMapFile(compiledVertPath);
-	vector<byte> crsm = BuildCRSM(vertSpirv, fragSpirv);
-
-	vertSpirv.reset();
-	fs::remove(compiledVertPath);
-
-	FILE *outputFile = nullptr;
+	FILE* outputFile = nullptr;
 	fopen_s(&outputFile, outputPath.string().c_str(), "wb");
-	fwrite(crsm.data(), sizeof(byte), crsm.size(), outputFile);
-	fclose(outputFile);*/
+	fwrite(crtexd.data(), sizeof(byte), crtexd.size(), outputFile);
+	fclose(outputFile);
 
 	return 0;
 }
