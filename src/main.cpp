@@ -71,10 +71,12 @@ vector<byte> CompressTexture(const Image& a_image, bool a_fast) {
 vector<byte> BuildCRTexd(const Image& a_image, const vector<byte>& a_data, bool a_fast) {
 	vector<byte> uncompressed;
 
+#pragma pack(4)
 	struct Header {
 		uint16_t Width{0};
 		uint16_t Height{0};
 	};
+#pragma pack()
 
 	Header header;
 	header.Width  = a_image.Width;
@@ -85,7 +87,7 @@ vector<byte> BuildCRTexd(const Image& a_image, const vector<byte>& a_data, bool 
 	copy((byte*)&header, (byte*)&header + sizeof(header), begin(uncompressed));
 	copy(a_data.data(), a_data.data() + a_data.size(), begin(uncompressed) + sizeof(header));
 
-	return DataCompression::Compress(data(a_data), (uint32_t)size(a_data), a_fast ? 3 : 18);
+	return DataCompression::Compress(data(uncompressed), (uint32_t)size(uncompressed), a_fast ? 3 : 18);
 }
 
 int main(int argc, char** argv) {
