@@ -11,7 +11,26 @@ set(TEXTURE_PROCESSOR_BUILD
 )
 
 set(TEXTURE_PROCESSOR_TEST_FILES
-    ${texture_processor_root}/asset_db/textures/spencer_walk_0001.tga
+    ${texture_processor_root}/asset_db/textures/BonusHarrySelect_0.tga
+    ${texture_processor_root}/asset_db/textures/BonusHarrySelect_1.tga
+    ${texture_processor_root}/asset_db/textures/BonusHarrySelect_2.tga
+    ${texture_processor_root}/asset_db/textures/BonusHarrySelect_3.tga
+    ${texture_processor_root}/asset_db/textures/BonusHarrySelect_4.tga
+    ${texture_processor_root}/asset_db/textures/BonusHarrySelect_5.tga
+    ${texture_processor_root}/asset_db/textures/BonusHarrySelect_6.tga
+    ${texture_processor_root}/asset_db/textures/BonusHarrySelect_7.tga
+    ${texture_processor_root}/asset_db/textures/BonusHarrySelect_8.tga
+    ${texture_processor_root}/asset_db/textures/BonusHarrySelect_9.tga
+    ${texture_processor_root}/asset_db/textures/BonusHarrySelect_10.tga
+    ${texture_processor_root}/asset_db/textures/BonusHarrySelect_11.tga
+    ${texture_processor_root}/asset_db/textures/BonusHarrySelect_12.tga
+    ${texture_processor_root}/asset_db/textures/BonusHarrySelect_13.tga
+    ${texture_processor_root}/asset_db/textures/BonusHarrySelect_14.tga
+    ${texture_processor_root}/asset_db/textures/BonusHarrySelect_15.tga
+    ${texture_processor_root}/asset_db/textures/BonusHarrySelect_16.tga
+    ${texture_processor_root}/asset_db/textures/BonusHarrySelect_17.tga
+    ${texture_processor_root}/asset_db/textures/BonusHarrySelect_18.tga
+    ${texture_processor_root}/asset_db/textures/BonusHarrySelect_19.tga
     ${texture_processor_root}/asset_db/textures/CompletionScreen.tga
 )
 
@@ -40,9 +59,6 @@ add_custom_command(TARGET TextureProcessor POST_BUILD
       ${amdcompress_root}/lib/x64/AMDCompress_MT_DLL.dll
       $<TARGET_FILE_DIR:TextureProcessor>          
   COMMAND ${CMAKE_COMMAND} -E copy_if_different  
-      ${texture_processor_root}/asset_db/textures/spencer_walk_0001.tga
-      $<TARGET_FILE_DIR:TextureProcessor>     
-  COMMAND ${CMAKE_COMMAND} -E copy_if_different  
-      ${texture_processor_root}/asset_db/textures/CompletionScreen.tga
-      $<TARGET_FILE_DIR:TextureProcessor>)
+      ${TEXTURE_PROCESSOR_TEST_FILES}
+      $<TARGET_FILE_DIR:TextureProcessor>) 
 		

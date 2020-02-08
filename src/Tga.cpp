@@ -42,6 +42,9 @@ Image ReadImage(const std::filesystem::path& a_path) {
 		Log::Fail("image {} has an usupported pixel format, only 24 bit rgb and 32 bit argb are supported",
 		          a_path.string());
 	}
+	if(!(header->YOffset == 0 || header->YOffset == header->Height)) {
+		Log::Fail("image {} has an usupported yoffset, origin must be top left or bottom left", a_path.string());
+	}
 	fileData += header->IDLength;
 
 	Image result;
