@@ -3,6 +3,10 @@
 #include "Platform/MemoryMappedFile.h"
 #include "core/Log.h"
 
+#include "glm/common.hpp"
+#include "glm/gtc/color_space.hpp"
+#include "glm/vec3.hpp"
+
 using namespace std;
 using namespace CR;
 using namespace CR::Core;
@@ -137,6 +141,25 @@ Image ReadImage(const std::filesystem::path& a_path) {
 		uint8_t temp       = result.Data[i + 0];
 		result.Data[i + 0] = result.Data[i + 2];
 		result.Data[i + 2] = temp;
+	}
+
+	// Using premultiplied alpha
+	if(result.HasAlpha) {
+		for(uint32_t i = 0; i < result.Data.size(); i += 4) {
+			float alpha = result.Data[i + 3] / 255.0f;
+			glm::vec3 color;
+			color.r = result.Data[i + 0] / 255.0f;
+			color.g = result.Data[i + 1] / 255.0f;
+			color.b = result.Data[i + 2] / 255.0f;
+
+			color = glm::convertSRGBToLinear(color);
+			color *= alpha;
+			color = glm::convertLinearToSRGB(color);
+
+			result.Data[i + 0] = (uint8_t)round(color.r * 255.0f);
+			result.Data[i + 1] = (uint8_t)round(color.g * 255.0f);
+			result.Data[i + 2] = (uint8_t)round(color.b * 255.0f);
+		}
 	}
 
 	return result;

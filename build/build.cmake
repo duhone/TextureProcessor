@@ -44,6 +44,7 @@ target_link_libraries(TextureProcessor
 	amdcompress
 	cli11
 	fmt
+    glm
 	spdlog
 	zstd
 	core
