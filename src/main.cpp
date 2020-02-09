@@ -95,11 +95,13 @@ int main(int argc, char** argv) {
 	string inputFileName  = "";
 	string outputFileName = "";
 	bool fast             = false;
+	bool premultiplyAlpha = false;
 	app.add_option("-i,--input", inputFileName,
 	               "Input TGA texture. filename only, leave off extension, actual file must have .tga extension")
 	    ->required();
 	app.add_option("-o,--output", outputFileName, "Output file. filename only, leave off extension")->required();
 	app.add_flag("-f,--fast", fast, "use faster, but lower quality compression");
+	app.add_flag("-p,--prealp", premultiplyAlpha, "premultiply alpha, should do this by default");
 
 	CLI11_PARSE(app, argc, argv);
 
@@ -120,7 +122,7 @@ int main(int argc, char** argv) {
 	outputPath = Platform::GetCurrentProcessPath() / outputPath;
 	outputPath.replace_extension("crtexd");
 
-	Image inputImage = ReadImage(inputPath);
+	Image inputImage = ReadImage(inputPath, premultiplyAlpha);
 
 	auto compTex = CompressTexture(inputImage, fast);
 	auto crtexd  = BuildCRTexd(inputImage, compTex, fast);

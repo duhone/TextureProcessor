@@ -11,4 +11,4 @@ struct Image {
 	std::vector<uint8_t> Data;
 };
 
-Image ReadImage(const std::filesystem::path& a_path);
+Image ReadImage(const std::filesystem::path& a_path, bool a_premultiplyAlpha);

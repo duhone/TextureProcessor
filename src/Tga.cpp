@@ -28,7 +28,7 @@ struct TgaHeader {
 };
 #pragma pack()
 
-Image ReadImage(const std::filesystem::path& a_path) {
+Image ReadImage(const std::filesystem::path& a_path, bool a_premultiplyAlpha) {
 	auto file = Platform::OpenMMapFile(a_path);
 
 	if(file->size() < sizeof(TgaHeader)) { Log::Fail("image {} was corrupt", a_path.string()); }
@@ -144,7 +144,7 @@ Image ReadImage(const std::filesystem::path& a_path) {
 	}
 
 	// Using premultiplied alpha
-	if(result.HasAlpha) {
+	if(result.HasAlpha && a_premultiplyAlpha) {
 		for(uint32_t i = 0; i < result.Data.size(); i += 4) {
 			float alpha = result.Data[i + 3] / 255.0f;
 			glm::vec3 color;
