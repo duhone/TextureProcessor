@@ -58,7 +58,7 @@ vector<byte> CompressTexture(const Image& a_image, bool a_fast) {
 	options.NumCmds                = 0;
 	options.dwmodeMask             = 0xCF;
 	options.nCompressionSpeed      = AMD_TC_Speed_Normal;
-	options.dwnumThreads           = 9;
+	options.dwnumThreads           = 8;
 	options.fquality               = a_fast ? 0.05f : 0.8f;
 
 	AMD_TC_ConvertTexture(&source, &dest, &options, progress, 0, 0);
