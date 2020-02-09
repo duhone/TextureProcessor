@@ -132,5 +132,12 @@ Image ReadImage(const std::filesystem::path& a_path) {
 		}
 	}
 
+	// Fix BGRA instead of RGBA issue
+	for(uint32_t i = 0; i < result.Data.size(); i += (result.HasAlpha ? 4 : 3)) {
+		uint8_t temp       = result.Data[i + 0];
+		result.Data[i + 0] = result.Data[i + 2];
+		result.Data[i + 2] = temp;
+	}
+
 	return result;
 }
