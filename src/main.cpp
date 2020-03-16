@@ -3,16 +3,19 @@
 #include "cli11/cli11.hpp"
 #include "fmt/format.h"
 
+#include "Core/BinaryStream.h"
 #include "DataCompression/LosslessCompression.h"
 #include "Platform/MemoryMappedFile.h"
 #include "Platform/PathUtils.h"
 #include "Platform/Process.h"
+#include "core/BinaryStream.h"
 #include "core/Log.h"
 
 #include "AMDCompress.h"
 
 #include <chrono>
 #include <cstdio>
+#include <regex>
 
 using namespace std;
 using namespace std::chrono_literals;
@@ -68,26 +71,44 @@ vector<byte> CompressTexture(const Image& a_image, bool a_fast) {
 	return result;
 }
 
-vector<byte> BuildCRTexd(const Image& a_image, const vector<byte>& a_data, bool a_fast) {
-	vector<byte> uncompressed;
-
-#pragma pack(4)
+// a_data not const, so we can free once not needed. keep memory usage under control
+void WriteCRTexd(const fs::path a_outputPath, const Image& a_image, vector<vector<byte>>& a_data, bool a_fast) {
+#pragma pack(1)
 	struct Header {
+		uint32_t FourCC{'CRTX'};
+		uint16_t Version{1};
 		uint16_t Width{0};
 		uint16_t Height{0};
+		uint16_t Frames{0};
+		// followed by an array of uint32_t offsets, Frames long. offset is distance from end of this array, to that
+		// frames compressed blob.
 	};
 #pragma pack()
+	vector<vector<byte>> compressedTextures;
+	vector<uint32_t> offsets;
+	uint32_t currentOffset = 0;
+	for(auto& frameData : a_data) {
+		offsets.push_back(currentOffset);
+		currentOffset += (uint32_t)frameData.size();
+		compressedTextures.push_back(
+		    DataCompression::Compress(data(frameData), (uint32_t)size(frameData), a_fast ? 3 : 18));
+		frameData.clear();
+		frameData.shrink_to_fit();
+	}
+
+	Core::FileHandle file{a_outputPath};
 
 	Header header;
 	header.Width  = a_image.Width;
 	header.Height = a_image.Height;
-
-	uncompressed.resize(sizeof(header) + a_data.size());
-
-	copy((byte*)&header, (byte*)&header + sizeof(header), begin(uncompressed));
-	copy(a_data.data(), a_data.data() + a_data.size(), begin(uncompressed) + sizeof(header));
-
-	return DataCompression::Compress(data(uncompressed), (uint32_t)size(uncompressed), a_fast ? 3 : 18);
+	header.Frames = (uint16_t)a_data.size();
+	Write(file, header);
+	Write(file, offsets);
+	for(auto& texture : compressedTextures) {
+		Write(file, texture);
+		texture.clear();
+		texture.shrink_to_fit();
+	}
 }
 
 int main(int argc, char** argv) {
@@ -97,7 +118,8 @@ int main(int argc, char** argv) {
 	bool fast             = false;
 	bool premultiplyAlpha = false;
 	app.add_option("-i,--input", inputFileName,
-	               "Input TGA texture. filename only, leave off extension, actual file must have .tga extension")
+	               "Input TGA texture. filename only, leave off extension, actual file must have .tga extension. Leave "
+	               "off _xxx for texture arrays")
 	    ->required();
 	app.add_option("-o,--output", outputFileName, "Output file. filename only, leave off extension")->required();
 	app.add_flag("-f,--fast", fast, "use faster, but lower quality compression");
@@ -117,20 +139,64 @@ int main(int argc, char** argv) {
 		app.exit(error);
 	}
 
-	inputPath = Platform::GetCurrentProcessPath() / inputPath;
-	inputPath.replace_extension("tga");
+	inputPath  = Platform::GetCurrentProcessPath() / inputPath;
 	outputPath = Platform::GetCurrentProcessPath() / outputPath;
 	outputPath.replace_extension("crtexd");
 
-	Image inputImage = ReadImage(inputPath, premultiplyAlpha);
+	struct InputFile {
+		fs::path Path;
+		uint32_t Frame{0};
+	};
+	std::vector<InputFile> inputFiles;
+	{
+		fs::path searchPath = inputPath;
+		searchPath.remove_filename();
+		std::string filename = inputPath.filename().string();
+		for(auto& pathIter : fs::directory_iterator{searchPath}) {
+			auto& path = pathIter.path();
 
-	auto compTex = CompressTexture(inputImage, fast);
-	auto crtexd  = BuildCRTexd(inputImage, compTex, fast);
+			if(path.filename().string()._Starts_with(filename) && path.has_extension() &&
+			   path.extension().string() == ".tga") {
+				string frameString = path.filename().string().substr(filename.size() + 1);
+				uint32_t frame     = 0;
+				if(frameString != "tga") { frame = std::stoul(frameString); }
+				inputFiles.push_back({path, frame});
+			}
+		}
 
-	FILE* outputFile = nullptr;
-	fopen_s(&outputFile, outputPath.string().c_str(), "wb");
-	fwrite(crtexd.data(), sizeof(byte), crtexd.size(), outputFile);
-	fclose(outputFile);
+		sort(inputFiles.begin(), inputFiles.end(), [](auto& file1, auto& file2) { return file1.Frame < file2.Frame; });
+
+		for(uint32_t i = 0; i < inputFiles.size(); ++i) {
+			if(inputFiles[i].Frame != i) {
+				CLI::Error error{"invalidarg", "Input files were missing frames, or did not start on frame 0",
+				                 CLI::ExitCodes::FileError};
+				app.exit(error);
+			}
+		}
+	}
+
+	if(inputFiles.size() > 256) {
+		CLI::Error error{"invalidarg", "Too many frames of animation, 256 is the maximum", CLI::ExitCodes::FileError};
+		app.exit(error);
+	}
+
+	vector<Image> images;
+	for(auto& path : inputFiles) { images.push_back(ReadImage(path.Path, premultiplyAlpha)); }
+
+	for(uint32_t i = 1; i < images.size(); ++i) {
+		if(images[i].Height != images[0].Height || images[i].Width != images[0].Width) {
+			CLI::Error error{
+			    "invalidarg",
+			    "Input files were not all the same resolution, every frame in an animation must the same size",
+			    CLI::ExitCodes::FileError};
+			app.exit(error);
+		}
+	}
+
+	vector<vector<byte>> compressedTextures;
+	for(const auto& image : images) { compressedTextures.push_back(CompressTexture(image, fast)); }
+
+	WriteCRTexd(outputPath, images[0], compressedTextures, fast);
 
 	return 0;
 }
