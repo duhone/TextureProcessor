@@ -80,16 +80,10 @@ void WriteCRTexd(const fs::path a_outputPath, const Image& a_image, vector<vecto
 		uint16_t Width{0};
 		uint16_t Height{0};
 		uint16_t Frames{0};
-		// followed by an array of uint32_t offsets, Frames long. offset is distance from end of this array, to that
-		// frames compressed blob.
 	};
 #pragma pack()
 	vector<vector<byte>> compressedTextures;
-	vector<uint32_t> offsets;
-	uint32_t currentOffset = 0;
 	for(auto& frameData : a_data) {
-		offsets.push_back(currentOffset);
-		currentOffset += (uint32_t)frameData.size();
 		compressedTextures.push_back(
 		    DataCompression::Compress(data(frameData), (uint32_t)size(frameData), a_fast ? 3 : 18));
 		frameData.clear();
@@ -103,7 +97,6 @@ void WriteCRTexd(const fs::path a_outputPath, const Image& a_image, vector<vecto
 	header.Height = a_image.Height;
 	header.Frames = (uint16_t)a_data.size();
 	Write(file, header);
-	Write(file, offsets);
 	for(auto& texture : compressedTextures) {
 		Write(file, texture);
 		texture.clear();
