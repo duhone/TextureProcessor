@@ -3,9 +3,7 @@
 #include "Platform/MemoryMappedFile.h"
 #include "core/Log.h"
 
-#include "glm/common.hpp"
-#include "glm/gtc/color_space.hpp"
-#include "glm/vec3.hpp"
+#include <3rdParty/glm.h>
 
 using namespace std;
 using namespace CR;
@@ -29,26 +27,23 @@ struct TgaHeader {
 #pragma pack()
 
 Image ReadImage(const std::filesystem::path& a_path, bool a_premultiplyAlpha) {
-	auto file = Platform::OpenMMapFile(a_path);
+	Platform::MemoryMappedFile file(a_path);
 
-	if(file->size() < sizeof(TgaHeader)) { Log::Fail("image {} was corrupt", a_path.string()); }
-	auto fileData     = file->data();
+	Log::Require(file.size() >= sizeof(TgaHeader), "image {} was corrupt", a_path.string());
+	auto fileData     = file.data();
 	TgaHeader* header = (TgaHeader*)fileData;
 	fileData += sizeof(TgaHeader);
 
-	if(header->ColorMapType != 0) {
-		Log::Fail("image {} has a pallette, only truecolor images are supported", a_path.string());
-	}
-	if(!(header->ImageType == 2 || header->ImageType == 10)) {
-		Log::Fail("image {} has an usupported image type, only truecolor images are supported", a_path.string());
-	}
-	if(!(header->PixelDepth == 24 || header->PixelDepth == 32)) {
-		Log::Fail("image {} has an usupported pixel format, only 24 bit rgb and 32 bit argb are supported",
-		          a_path.string());
-	}
-	if(!(header->YOffset == 0 || header->YOffset == header->Height)) {
-		Log::Fail("image {} has an usupported yoffset, origin must be top left or bottom left", a_path.string());
-	}
+	Log::Require(header->ColorMapType == 0, "image {} has a pallette, only truecolor images are supported",
+	             a_path.string());
+	Log::Require(header->ImageType == 2 || header->ImageType == 10,
+	             "image {} has an usupported image type, only truecolor images are supported", a_path.string());
+	Log::Require(header->PixelDepth == 24 || header->PixelDepth == 32,
+	             "image {} has an usupported pixel format, only 24 bit rgb and 32 bit argb are supported",
+	             a_path.string());
+	Log::Require(header->YOffset == 0 || header->YOffset == header->Height,
+	             "image {} has an usupported yoffset, origin must be top left or bottom left", a_path.string());
+
 	fileData += header->IDLength;
 
 	Image result;
@@ -69,34 +64,42 @@ Image ReadImage(const std::filesystem::path& a_path, bool a_premultiplyAlpha) {
 			yEnd   = header->Height;
 			yStep  = 1;
 		}
-		size_t remainingData = file->size() - sizeof(header) - header->IDLength;
+		size_t remainingData = file.size() - sizeof(header) - header->IDLength;
 		size_t imageData     = result.Width * result.Height * (header->PixelDepth == 32 ? 4 : 3);
 		Log::Assert(imageData <= remainingData, "Image {} corrupt, missing data");
+		result.Data.prepare(imageData);
+		int32_t insert = 0;
 		for(int32_t y = yStart; y != yEnd; y += yStep) {
-			result.Data.insert(end(result.Data), (uint8_t*)fileData + y * stride,
-			                   (uint8_t*)fileData + (y + 1) * stride);
+			memcpy(result.Data.data() + insert, fileData + y * stride, stride);
+			insert += stride;
 		}
+		result.Data.commit(imageData);
 	}
 
 	// rle encoded image
 	if(header->ImageType == 10) {
-		size_t remainingData   = file->size() - sizeof(header) - header->IDLength;
+		size_t remainingData   = file.size() - sizeof(header) - header->IDLength;
 		byte* fileEnd          = fileData + remainingData;
 		uint32_t bytesPerPixel = header->PixelDepth / 8;
 		size_t imageData       = result.Width * result.Height * bytesPerPixel;
 
 		auto readByte = [&]() {
 			Log::Assert(fileData < fileEnd, "Image {} corrupt, missing data");
-			uint8_t result = *(uint8_t*)fileData;
+			byte result = *(byte*)fileData;
 			++fileData;
 			return result;
 		};
 
-		result.Data.reserve(imageData);
-		uint8_t alpha, red, green, blue;
+		size_t outputsize = imageData;
+		result.Data.prepare(outputsize);
+		byte alpha = (byte)0;
+		byte red   = (byte)0;
+		byte green = (byte)0;
+		byte blue  = (byte)0;
 		uint8_t runLength;
+		int32_t insertLoc = 0;
 		while(imageData > 0) {
-			runLength = readByte();
+			runLength = (uint8_t)readByte();
 			if(runLength & 0x80) {
 				// rle data
 				runLength &= 0x7f;
@@ -107,58 +110,62 @@ Image ReadImage(const std::filesystem::path& a_path, bool a_premultiplyAlpha) {
 				blue  = readByte();
 				imageData -= runLength * bytesPerPixel;
 				for(uint32_t i = 0; i < runLength; ++i) {
-					if(header->PixelDepth == 32) { result.Data.push_back(alpha); }
-					result.Data.push_back(red);
-					result.Data.push_back(green);
-					result.Data.push_back(blue);
+					if(header->PixelDepth == 32) { result.Data[insertLoc++] = alpha; }
+					result.Data[insertLoc++] = red;
+					result.Data[insertLoc++] = green;
+					result.Data[insertLoc++] = blue;
 				}
 			} else {
 				// raw data
 				++runLength;
 				imageData -= runLength * bytesPerPixel;
 				for(uint32_t i = 0; i < runLength; ++i) {
-					if(header->PixelDepth == 32) { result.Data.push_back(readByte()); }
-					result.Data.push_back(readByte());
-					result.Data.push_back(readByte());
-					result.Data.push_back(readByte());
+					if(header->PixelDepth == 32) { result.Data[insertLoc++] = readByte(); }
+					result.Data[insertLoc++] = readByte();
+					result.Data[insertLoc++] = readByte();
+					result.Data[insertLoc++] = readByte();
 				}
 			}
 		}
+		result.Data.commit(outputsize);
 
-		// flip
+		// flip, slow doing it this way instead of inline above
 		if(header->YOffset == 0) {
 			uint32_t stride = result.Width * (header->PixelDepth == 32 ? 4 : 3);
 			auto src        = move(result.Data);
+			result.Data.prepare(src.size());
+			int32_t insert = 0;
 			for(uint32_t y = 0; y < header->Height; ++y) {
-				result.Data.insert(end(result.Data), begin(src) + (header->Height - y - 1) * stride,
-				                   begin(src) + (header->Height - y) * stride);
+				memcpy(result.Data.data() + insert, begin(src) + (header->Height - y - 1) * stride, stride);
+				insert += stride;
 			}
+			result.Data.commit(src.size());
 		}
 	}
 
-	// Fix BGRA instead of RGBA issue
+	// Fix BGRA instead of RGBA issue, slow
 	for(uint32_t i = 0; i < result.Data.size(); i += (result.HasAlpha ? 4 : 3)) {
-		uint8_t temp       = result.Data[i + 0];
+		byte temp          = result.Data[i + 0];
 		result.Data[i + 0] = result.Data[i + 2];
 		result.Data[i + 2] = temp;
 	}
 
-	// Using premultiplied alpha
+	// Using premultiplied alpha, slow
 	if(result.HasAlpha && a_premultiplyAlpha) {
 		for(uint32_t i = 0; i < result.Data.size(); i += 4) {
-			float alpha = result.Data[i + 3] / 255.0f;
+			float alpha = (float)result.Data[i + 3] / 255.0f;
 			glm::vec3 color;
-			color.r = result.Data[i + 0] / 255.0f;
-			color.g = result.Data[i + 1] / 255.0f;
-			color.b = result.Data[i + 2] / 255.0f;
+			color.r = (float)result.Data[i + 0] / 255.0f;
+			color.g = (float)result.Data[i + 1] / 255.0f;
+			color.b = (float)result.Data[i + 2] / 255.0f;
 
 			color = glm::convertSRGBToLinear(color);
 			color *= alpha;
 			color = glm::convertLinearToSRGB(color);
 
-			result.Data[i + 0] = (uint8_t)round(color.r * 255.0f);
-			result.Data[i + 1] = (uint8_t)round(color.g * 255.0f);
-			result.Data[i + 2] = (uint8_t)round(color.b * 255.0f);
+			result.Data[i + 0] = (byte)((uint8_t)round(color.r * 255.0f));
+			result.Data[i + 1] = (byte)((uint8_t)round(color.g * 255.0f));
+			result.Data[i + 2] = (byte)((uint8_t)round(color.b * 255.0f));
 		}
 	}
 

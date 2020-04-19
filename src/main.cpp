@@ -1,8 +1,5 @@
 ﻿#include "Tga.h"
 
-#include "cli11/cli11.hpp"
-#include "fmt/format.h"
-
 #include "Core/BinaryStream.h"
 #include "DataCompression/LosslessCompression.h"
 #include "Platform/MemoryMappedFile.h"
@@ -11,7 +8,9 @@
 #include "core/BinaryStream.h"
 #include "core/Log.h"
 
-#include "AMDCompress.h"
+#include <3rdParty/amdcompress.h>
+#include <3rdParty/cli11.h>
+#include <3rdParty/fmt.h>
 
 #include <chrono>
 #include <cstdio>
@@ -23,7 +22,7 @@ namespace fs = std::filesystem;
 using namespace CR;
 using namespace CR::Core;
 
-vector<byte> CompressTexture(const Image& a_image, bool a_fast) {
+storage_buffer<byte> CompressTexture(const Image& a_image, bool a_fast) {
 	AMD_TC_InitializeBCLibrary();
 
 	AMD_TC_Texture source;
@@ -42,9 +41,10 @@ vector<byte> CompressTexture(const Image& a_image, bool a_fast) {
 	dest.dwPitch  = 0;    // unused
 	dest.format   = AMD_TC_FORMAT::AMD_TC_FORMAT_BC7;
 
-	vector<byte> result;
+	storage_buffer<byte> result;
 	dest.dwDataSize = AMD_TC_CalculateBufferSize(&dest);
-	result.resize(dest.dwDataSize);
+	result.prepare(dest.dwDataSize);
+	result.commit(dest.dwDataSize);
 	dest.pData = (AMD_TC_BYTE*)result.data();
 
 	auto progress = [](float a_prog, DWORD_PTR, DWORD_PTR) {
@@ -72,7 +72,7 @@ vector<byte> CompressTexture(const Image& a_image, bool a_fast) {
 }
 
 // a_data not const, so we can free once not needed. keep memory usage under control
-void WriteCRTexd(const fs::path a_outputPath, const Image& a_image, vector<vector<byte>>& a_data, bool a_fast) {
+void WriteCRTexd(const fs::path a_outputPath, const Image& a_image, vector<storage_buffer<byte>>& a_data, bool a_fast) {
 #pragma pack(1)
 	struct Header {
 		uint32_t FourCC{'CRTX'};
@@ -82,10 +82,10 @@ void WriteCRTexd(const fs::path a_outputPath, const Image& a_image, vector<vecto
 		uint16_t Frames{0};
 	};
 #pragma pack()
-	vector<vector<byte>> compressedTextures;
+	vector<storage_buffer<byte>> compressedTextures;
 	for(auto& frameData : a_data) {
 		compressedTextures.push_back(
-		    DataCompression::Compress(data(frameData), (uint32_t)size(frameData), a_fast ? 3 : 18));
+		    DataCompression::Compress(Span<const byte>(data(frameData), (uint32_t)size(frameData)), a_fast ? 3 : 18));
 		frameData.clear();
 		frameData.shrink_to_fit();
 	}
@@ -93,8 +93,8 @@ void WriteCRTexd(const fs::path a_outputPath, const Image& a_image, vector<vecto
 	Core::FileHandle file{a_outputPath};
 
 	Header header;
-	header.Width  = a_image.Width;
-	header.Height = a_image.Height;
+	header.Width  = (uint16_t)a_image.Width;
+	header.Height = (uint16_t)a_image.Height;
 	header.Frames = (uint16_t)a_data.size();
 	Write(file, header);
 	for(auto& texture : compressedTextures) {
@@ -186,7 +186,7 @@ int main(int argc, char** argv) {
 		}
 	}
 
-	vector<vector<byte>> compressedTextures;
+	vector<storage_buffer<byte>> compressedTextures;
 	for(const auto& image : images) { compressedTextures.push_back(CompressTexture(image, fast)); }
 
 	WriteCRTexd(outputPath, images[0], compressedTextures, fast);
