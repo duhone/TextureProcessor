@@ -139,8 +139,7 @@ int main(int argc, char** argv) {
 		app.exit(error);
 	}
 
-	inputPath  = Platform::GetCurrentProcessPath() / inputPath;
-	outputPath = Platform::GetCurrentProcessPath() / outputPath;
+	filesystem::current_path(Platform::GetCurrentProcessPath());
 	outputPath.replace_extension("crtexd");
 
 	struct InputFile {
