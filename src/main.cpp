@@ -93,6 +93,10 @@ void WriteCRTexd(const fs::path a_outputPath, const Image& a_image, vector<stora
 		frameData.shrink_to_fit();
 	}
 
+	fs::path outputFolder = a_outputPath;
+	outputFolder.remove_filename();
+	fs::create_directories(outputFolder);
+
 	Core::FileHandle file{a_outputPath};
 
 	Header header;
