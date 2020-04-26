@@ -42,11 +42,8 @@ add_executable(TextureProcessor
 
 settingsCR(TextureProcessor)	
 			
-add_compile_definitions(DOCTEST_CONFIG_DISABLE)
-
 target_precompile_headers(TextureProcessor PRIVATE 
 	<3rdParty/cli11.h>
-	<3rdParty/doctest.h>
 	<3rdParty/fmt.h>
 	<3rdParty/function2.h>
 	<3rdParty/spdlog.h>
@@ -56,6 +53,7 @@ target_precompile_headers(TextureProcessor PRIVATE
 target_link_libraries(TextureProcessor 
 	amdcompress
 	cli11
+    doctest
 	fmt
     glm
 	spdlog

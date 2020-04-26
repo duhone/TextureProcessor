@@ -12,6 +12,9 @@
 #include <3rdParty/cli11.h>
 #include <3rdParty/fmt.h>
 
+#define DOCTEST_CONFIG_IMPLEMENT
+#include <3rdParty/doctest.h>
+
 #include <chrono>
 #include <cstdio>
 #include <regex>
