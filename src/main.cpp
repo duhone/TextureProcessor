@@ -174,6 +174,12 @@ int main(int argc, char** argv) {
 		}
 	}
 
+	for(const auto& inputFile : inputFiles) {
+		if(fs::last_write_time(outputPath) > fs::last_write_time(inputFile.Path)) {
+			return 0;    // nothing to do
+		}
+	}
+
 	if(inputFiles.size() > 256) {
 		CLI::Error error{"invalidarg", "Too many frames of animation, 256 is the maximum", CLI::ExitCodes::FileError};
 		app.exit(error);
