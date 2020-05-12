@@ -174,10 +174,12 @@ int main(int argc, char** argv) {
 		}
 	}
 
+	bool needsUpdating = false;
 	for(const auto& inputFile : inputFiles) {
-		if(fs::last_write_time(outputPath) > fs::last_write_time(inputFile.Path)) {
-			return 0;    // nothing to do
-		}
+		if(fs::last_write_time(outputPath) <= fs::last_write_time(inputFile.Path)) { needsUpdating = true; }
+	}
+	if(!needsUpdating) {
+		return 0;    // nothing to do
 	}
 
 	if(inputFiles.size() > 256) {
