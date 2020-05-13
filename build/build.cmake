@@ -40,16 +40,9 @@ add_executable(TextureProcessor
 	${TEST_FILES}
 )
 
-settingsCR(TextureProcessor)	
+settingsCR(TextureProcessor)		
+createPCH(TextureProcessor)	
 			
-target_precompile_headers(TextureProcessor PRIVATE 
-	<3rdParty/cli11.h>
-	<3rdParty/fmt.h>
-	<3rdParty/function2.h>
-	<3rdParty/spdlog.h>
-	<3rdParty/zstd.h>
-)
-
 target_link_libraries(TextureProcessor 
 	amdcompress
 	cli11
