@@ -40,8 +40,8 @@ add_executable(TextureProcessor
 	${TEST_FILES}
 )
 
-settingsCR(TextureProcessor)		
-createPCH(TextureProcessor)	
+settingsCR(TextureProcessor)
+usePCH(TextureProcessor core)
 			
 target_link_libraries(TextureProcessor 
 	amdcompress
